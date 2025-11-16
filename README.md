@@ -1,60 +1,98 @@
-# API Gateway
+# Gateway Service
 
-Puerta de enlace principal del sistema de microservicios para gestión de pedidos.
+API Gateway con Spring Cloud Gateway para enrutamiento dinámico, load balancing y gestión centralizada de tráfico.
 
-## Funcionalidades
+## Descripción
+Gateway Service actúa como punto de entrada único para todos los microservicios, proporcionando:
 
-- **Enrutamiento**: Distribuye requests a microservicios apropiados
-- **Balanceo de carga**: Usa Spring Cloud LoadBalancer con Eureka
-- **Descubrimiento de servicios**: Integración automática con Eureka
-- **Configuración centralizada**: Gestionado por Config Server
-- **Autenticación OAuth2**: Cliente OAuth2 con login automático
-- **Protección de rutas**: Todas las rutas requieren autenticación JWT
+- **Enrutamiento Dinámico**: Rutas configurables hacia microservicios registrados en Eureka
+- **Load Balancing**: Balanceo automático de carga entre instancias de servicios
+- **Service Discovery**: Integración con Eureka para descubrimiento automático
+- **Configuración Centralizada**: Configuración via Spring Cloud Config Server
+- **Monitoring y Observabilidad**: Métricas, health checks y logging centralizado
+- **Rate Limiting**: Control de velocidad de requests (configurable)
+- **Circuit Breakers**: Protección contra fallos en cascada
 
-## Endpoints
 
-### Autenticación OAuth2
-- `GET /oauth2/authorization/oauth-client` → Inicia flujo de login OAuth2
-- `GET /authorized` → Callback que recibe y procesa tokens JWT
+### Funcionalidades Principales
 
-### APIs Protegidas (requieren Bearer Token)
-- `GET/POST/PUT/DELETE /productos/**` → Redirige a ms-productos
+#### **Load Balancing**
+- Balanceo round-robin automático
+- Health-based routing (solo hacia servicios saludables)
+- Failover automático entre instancias
 
-## Configuración Docker
+#### **Service Discovery**
+- Registro automático en Eureka
+- Resolución dinámica de nombres de servicios
+- Hot-reload de rutas sin restart
 
-- **Puerto**: 8083
-- **Perfil**: docker
-- **Eureka**: `registry-service:8761`
-- **OAuth2 Client**: Configurado como `oauth-client`
-- **Provider**: `oauth-server:9000`
-- **Seguridad**: OAuth2 habilitado con JWT
+#### **Configuración Dinática**
+- Actualización automática desde Config Server
+- Perfiles por entorno (dev/qa/prod)
+- Refresh de configuración via `/actuator/refresh`
 
-## Rutas Configuradas
+## Dependencias
 
-```yaml
-routes:
-  - id: ms-productos
-    uri: lb://ms-productos
-    predicates:
-      - Path=/productos/**
+### Servicios de Infraestructura
+- **Registry Service**: http://localhost:8761 (Eureka Server)
+- **Config Server**: http://localhost:8888 (Spring Cloud Config)
+- **MS Productos V2**: http://localhost:8083 (ms-productos-v2)
+- **MS Pedidos**: http://localhost:8082 (ms-pedidos)
 
-# Cliente OAuth2 configurado
-registration:
-  oauth-client:
-    provider: oauth-server
-    client-id: oauth-client
-    client-secret: 12345678910
-    authorization-grant-type: authorization_code
-    redirect-uri: http://localhost:8083/authorized
-```
+## Ejecutar
 
-## Despliegue
-
+### Desarrollo Local
 ```bash
-docker-compose up --build gateway
+./gradlew bootRun --spring.profiles.active=dev
 ```
 
-## Health Check
+## Métricas y Monitoreo
 
-- Endpoint: `http://localhost:8083/actuator/health`
-- Estado esperado: `{"status":"UP"}`
+### Endpoints de Actuator
+```bash
+# Health check completo
+curl http://localhost:8080/actuator/health
+
+# Métricas del Gateway
+curl http://localhost:8080/actuator/metrics
+
+# Métricas Prometheus
+curl http://localhost:8080/actuator/prometheus
+
+# Información del servicio
+curl http://localhost:8080/actuator/info
+
+# Lista de rutas
+curl http://localhost:8080/actuator/gateway/routes
+
+# Refresh de configuración
+curl -X POST http://localhost:8080/actuator/refresh
+```
+
+### Métricas Disponibles
+- **gateway.requests**: Contador de requests procesados
+- **gateway.responses**: Respuestas por código de estado
+- **gateway.routes**: Rutas activas
+- **http.server.requests**: Latencia y throughput
+
+## Integración con otros servicios
+
+### Con MS Productos V2
+- **Puerto destino**: 8083
+- **Servicio**: ms-productos-v2 (Eureka)
+- **Ruta**: `/api/products/**`
+
+### Con MS Pedidos
+- **Puerto destino**: 8082
+- **Servicio**: ms-pedidos (Eureka)
+- **Ruta**: `/api/pedidos/**`
+
+### Con Registry Service
+- **Registro**: Automático en Eureka
+- **URL**: http://localhost:8761/eureka/apps/gateway-service
+- **Health Check**: Integrado con Eureka
+
+### Con Config Server
+- **URL**: http://localhost:8888/gateway-service/dev
+- **Configuración**: `config-repo/gateway-service.yaml`
+- **Auto Refresh**: Via `/actuator/refresh`

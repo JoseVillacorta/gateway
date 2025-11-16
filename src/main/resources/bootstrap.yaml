@@ -7,10 +7,10 @@ spring:
   cloud:
     config:
       # URL donde se está ejecutando tu Config Server
-      uri: http://config-server:8888
+      uri: http://localhost:8888
 
       # Perfil que deseas cargar (ej. dev, prod, local)
-      profile: docker
+      profile: dev
 
       # Etiqueta (branch) del repositorio Git a usar (usa el que definiste en el Server Config)
-      label: main # Puede ser 'main', 'master' o la rama que uses
+      label: main
